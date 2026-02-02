@@ -28,7 +28,7 @@ const SPA_ROUTES = ["/", "/connect", "/device"];
 // Resolve the path to the web app files
 function getAppFilesRoot() {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, "app", "app");
+    return path.join(process.resourcesPath, "app-files");
   }
   return path.join(__dirname, "app");
 }

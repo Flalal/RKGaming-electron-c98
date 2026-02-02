@@ -20,8 +20,18 @@
     },
     "files": [
       "main.js",
-      "preload.js",
-      "app/**/*"
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "app",
+        "to": "app-files",
+        "filter": [
+          "**/*",
+          "!cert.pem",
+          "!key.pem"
+        ]
+      }
     ],
     "win": {
       "target": "nsis",
