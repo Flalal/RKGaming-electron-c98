@@ -1,67 +1,85 @@
 const { app, BrowserWindow } = require("electron");
-const { spawn } = require("child_process");
 const path = require("path");
+const fs = require("fs");
+const http = require("http");
 
 // Vendor ID for RK Gaming keyboards
 const RK_VENDOR_ID = 0x1ca2;
 
-const SERVER_PORT = 8443;
+// MIME types (same as server.mjs)
+const MIME_TYPES = {
+  ".html": "text/html",
+  ".js": "application/javascript",
+  ".css": "text/css",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".json": "application/json",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+};
 
-// Resolve the path to the web app files (where server.mjs lives)
-function getAppRoot() {
+// SPA routes that should serve index.html
+const SPA_ROUTES = ["/", "/connect", "/device"];
+
+// Resolve the path to the web app files
+function getAppFilesRoot() {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, "app-files");
+    return path.join(process.resourcesPath, "app", "app");
   }
   return path.join(__dirname, "app");
 }
 
-// Start server.mjs as a child process
-function startServer() {
-  return new Promise((resolve, reject) => {
-    const appRoot = getAppRoot();
-    const serverPath = path.join(appRoot, "server.mjs");
+// Start a local HTTP server to serve the app files
+function startLocalServer() {
+  return new Promise((resolve) => {
+    const root = getAppFilesRoot();
 
-    const child = spawn(process.execPath.includes("electron") ? "node" : "node", [serverPath], {
-      cwd: appRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const server = http.createServer((req, res) => {
+      let url = req.url.split("?")[0];
 
-    let started = false;
-
-    child.stdout.on("data", (data) => {
-      const msg = data.toString();
-      console.log("[server]", msg.trim());
-      if (!started && (msg.includes("localhost") || msg.includes("127.0.0.1"))) {
-        started = true;
-        resolve(child);
+      // SPA routing
+      if (SPA_ROUTES.includes(url)) {
+        url = "/index.html";
       }
-    });
 
-    child.stderr.on("data", (data) => {
-      console.error("[server]", data.toString().trim());
-    });
+      const filePath = path.join(root, url);
 
-    child.on("error", (err) => {
-      reject(err);
-    });
-
-    child.on("exit", (code) => {
-      if (!started) {
-        reject(new Error(`server.mjs exited with code ${code}`));
+      // Security: prevent path traversal
+      const resolvedPath = path.resolve(filePath);
+      const resolvedRoot = path.resolve(root);
+      if (!resolvedPath.startsWith(resolvedRoot)) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
       }
+
+      fs.readFile(resolvedPath, (err, data) => {
+        if (err) {
+          res.writeHead(404);
+          res.end("Not found: " + url);
+          return;
+        }
+        const ext = path.extname(resolvedPath).toLowerCase();
+        const mimeType = MIME_TYPES[ext] || "application/octet-stream";
+        res.writeHead(200, { "Content-Type": mimeType });
+        res.end(data);
+      });
     });
 
-    // Fallback: if server doesn't print anything in 5s, assume it's running
-    setTimeout(() => {
-      if (!started) {
-        started = true;
-        resolve(child);
-      }
-    }, 5000);
+    // Listen on random available port on localhost
+    server.listen(0, "127.0.0.1", () => {
+      const port = server.address().port;
+      console.log(`[Electron] Local server running on http://127.0.0.1:${port}`);
+      resolve(port);
+    });
   });
 }
 
-function createWindow() {
+function createWindow(port) {
   const win = new BrowserWindow({
     width: 1680,
     height: 1050,
@@ -113,50 +131,20 @@ function createWindow() {
     }
   );
 
-  // Load via HTTPS (server.mjs uses self-signed cert)
-  win.loadURL(`https://localhost:${SERVER_PORT}/`);
+  win.loadURL(`http://127.0.0.1:${port}/`);
 }
 
-// Ignore self-signed certificate errors for localhost
-app.on("certificate-error", (event, webContents, url, error, certificate, callback) => {
-  if (new URL(url).hostname === "localhost") {
-    event.preventDefault();
-    callback(true);
-  } else {
-    callback(false);
-  }
-});
-
-let serverProcess = null;
-
 app.whenReady().then(async () => {
-  try {
-    serverProcess = await startServer();
-    console.log("[Electron] server.mjs started");
-  } catch (err) {
-    console.error("[Electron] Failed to start server:", err.message);
-    app.quit();
-    return;
-  }
-
-  createWindow();
+  const port = await startLocalServer();
+  createWindow(port);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createWindow(port);
     }
   });
 });
 
 app.on("window-all-closed", () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
   app.quit();
-});
-
-app.on("before-quit", () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
 });
