@@ -12,7 +12,7 @@ function getAppRoot() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "app-files");
   }
-  return path.join(__dirname, "..", "RKGaming-offline");
+  return path.join(__dirname, "app");
 }
 
 // Start server.mjs as a child process

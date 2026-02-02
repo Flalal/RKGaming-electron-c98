@@ -1,22 +1,14 @@
 # RK Gaming Configurator - Electron
 
-Desktop application for the [RKGaming-offline](https://github.com/Flalal/RKGaming-offline) keyboard configurator.
+Standalone desktop application for the RK Gaming keyboard configurator. No browser needed.
 
 ## Prerequisites
 
 - **Node.js** (v18 or later)
-- [RKGaming-offline](https://github.com/Flalal/RKGaming-offline) cloned as a sibling folder
-
-```
-Documents/
-├── RKGaming-offline/    # Web app files
-└── RKGaming-electron/   # This repo
-```
 
 ## Installation
 
 ```bash
-git clone https://github.com/Flalal/RKGaming-offline.git
 git clone https://github.com/Flalal/RKGaming-electron.git
 cd RKGaming-electron
 npm install
@@ -40,11 +32,28 @@ The installer is generated in the `dist/` folder.
 
 ## How It Works
 
-- Embeds a local HTTP server serving files from `../RKGaming-offline/`
+- Launches `server.mjs` as a child process to serve the web app
+- Opens a Chromium window via Electron pointing to `https://localhost:8443`
+- Self-signed certificate is auto-accepted
 - WebHID permissions are automatically granted for RK Gaming devices (Vendor ID `0x1CA2`)
-- SPA routing for `/connect` and `/device` pages
 - No browser picker dialog - the RK keyboard is auto-selected
 
 ## Supported Keyboards
 
 All RK Gaming keyboards with Vendor ID `0x1CA2` (7330), including RK C98 and 25+ other variants.
+
+## Project Structure
+
+```
+RKGaming-electron/
+├── main.js           # Electron main process
+├── preload.js        # Electron preload script
+├── package.json      # Dependencies & build config
+├── app/              # Web app files (self-contained)
+│   ├── server.mjs    # HTTPS server
+│   ├── index.html    # Entry point
+│   ├── *.js          # Vue.js bundles
+│   ├── *.css         # Stylesheets
+│   └── assets/       # Images & fonts
+└── dist/             # Built .exe (after npm run build)
+```
