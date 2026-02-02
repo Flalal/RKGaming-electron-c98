@@ -1,0 +1,57 @@
+{
+  "name": "rkgaming-configurator",
+  "version": "1.0.0",
+  "description": "RK Gaming Keyboard Configurator - Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.rkgaming.configurator",
+    "productName": "RK Gaming Configurator",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "../RKGaming-offline/**/*",
+      "!../RKGaming-offline/server.mjs",
+      "!../RKGaming-offline/cert.pem",
+      "!../RKGaming-offline/key.pem",
+      "!../RKGaming-offline/node_modules/**",
+      "!../RKGaming-offline/.git/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../RKGaming-offline",
+        "to": "app-files",
+        "filter": [
+          "**/*",
+          "!server.mjs",
+          "!cert.pem",
+          "!key.pem",
+          "!node_modules/**",
+          "!.git/**",
+          "!.gitignore",
+          "!README.md"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
